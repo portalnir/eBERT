@@ -7,7 +7,7 @@
 2. cd into src, run `conda env create -f environment.yml`
     1. This creates a Conda environment called `squad`
 
-3. Run `source activate squad`
+3. Run `conda activate squad`
     1. This activates the `squad` environment
     2. Do this each time you want to write/test your code
   
