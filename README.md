@@ -1,3 +1,6 @@
+## IDC NLP Project 2020
+This is the final project repo for NLP course.
+
 ## Setup
 
 1. Make sure you have [Miniconda](https://conda.io/docs/user-guide/install/index.html#regular-installation) installed
