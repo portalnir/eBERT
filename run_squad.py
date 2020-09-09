@@ -262,7 +262,7 @@ def train(args, train_dataset, model, tokenizer):
     if args.local_rank in [-1, 0]:
         tb_writer.close()
 
-    epoch_iterator.set_postfix(LOSS=tr_loss,
+    epoch_iterator.set_postfix(LOSS=tr_loss / global_step,
                                epoch=epoch)
     return global_step, tr_loss / global_step
 
