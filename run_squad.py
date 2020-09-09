@@ -215,6 +215,9 @@ def train(args, train_dataset, model, tokenizer):
                 loss.backward()
 
             tr_loss += loss.item()
+            epoch_iterator.set_postfix(LOSS=tr_loss / global_step,
+                                       epoch=epoch)
+            epoch_iterator.update()
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 if args.fp16:
                     torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
@@ -262,8 +265,6 @@ def train(args, train_dataset, model, tokenizer):
     if args.local_rank in [-1, 0]:
         tb_writer.close()
 
-    epoch_iterator.set_postfix(LOSS=tr_loss / global_step,
-                               epoch=epoch)
     return global_step, tr_loss / global_step
 
 
