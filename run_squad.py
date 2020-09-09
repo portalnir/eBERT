@@ -105,8 +105,9 @@ def train(args, train_dataset, model, tokenizer):
         os.path.join(args.model_name_or_path, "scheduler.pt")
     ):
         # Load in optimizer and scheduler states
-        optimizer.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "optimizer.pt")))
-        scheduler.load_state_dict(torch.load(os.path.join(args.model_name_or_path, "scheduler.pt")))
+        optim_sched = torch.load(os.path.join(args.model_name_or_path, "optimizer_scheduler.pt"))
+        optimizer.load_state_dict(optim_sched["optimizer"])
+        scheduler.load_state_dict(optim_sched["scheduler"])
 
     if args.fp16:
         try:
@@ -251,8 +252,11 @@ def train(args, train_dataset, model, tokenizer):
                     torch.save(args, os.path.join(output_dir, "training_args.bin"))
                     logger.info("Saving model checkpoint to %s", output_dir)
 
-                    torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-                    torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+                    optim_sched = {
+                        "optimizer" : optimizer.state_dict(),
+                        "scheduler" : scheduler.state_dict(),
+                    }
+                    torch.save(optim_sched, os.path.join(output_dir, "optimizer_scheduler.pt"))
                     logger.info("Saving optimizer and scheduler states to %s", output_dir)
 
             if args.max_steps > 0 and global_step > args.max_steps:
