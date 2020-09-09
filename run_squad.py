@@ -168,7 +168,7 @@ def train(args, train_dataset, model, tokenizer):
     set_seed(args)
 
     for epoch in train_iterator:
-        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0], leave=True, position=0)
+        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0], leave=True, position=1)
         for step, batch in enumerate(epoch_iterator):
 
             # Skip past any already trained steps if resuming training
@@ -292,7 +292,7 @@ def evaluate(args, model, tokenizer, prefix=""):
     all_results = []
     start_time = timeit.default_timer()
 
-    eval_progressbar = tqdm(eval_dataloader, desc="Evaluating", leave=True, position=0)
+    eval_progressbar = tqdm(eval_dataloader, desc="Evaluating", leave=True, position=1)
     for batch in eval_progressbar:
         model.eval()
         batch = tuple(t.to(args.device) for t in batch)
