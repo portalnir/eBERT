@@ -216,7 +216,7 @@ def train(args, train_dataset, model, tokenizer):
 
             tr_loss += loss.item()
             epoch_iterator.set_postfix(LOSS=tr_loss / global_step,
-                                       epoch=epoch)
+                                       epoch=epoch+1)
             epoch_iterator.update()
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 if args.fp16:
