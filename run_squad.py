@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-from tqdm import tqdm, trange
+from tqdm.notebook import tqdm, trange
 
 from transformers import (
     MODEL_FOR_QUESTION_ANSWERING_MAPPING,
@@ -167,7 +167,7 @@ def train(args, train_dataset, model, tokenizer):
     # Added here for reproductibility
     set_seed(args)
 
-    for _ in train_iterator:
+    for epoch in train_iterator:
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
 
@@ -262,6 +262,8 @@ def train(args, train_dataset, model, tokenizer):
     if args.local_rank in [-1, 0]:
         tb_writer.close()
 
+    epoch_iterator.set_postfix(LOSS=tr_loss,
+                               epoch=epoch)
     return global_step, tr_loss / global_step
 
 
