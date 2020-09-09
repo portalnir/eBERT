@@ -351,7 +351,7 @@ def evaluate(args, model, tokenizer, prefix=""):
         eval_progressbar.update()
 
     evalTime = timeit.default_timer() - start_time
-    logger.info("  Evaluation done in total %f secs (%f sec per example)", evalTime, evalTime / len(dataset))
+    logger.info("Evaluation done in total %f secs (%f sec per example)", evalTime, evalTime / len(dataset))
 
     # Compute predictions
     output_prediction_file = os.path.join(args.output_dir, "predictions_{}.json".format(prefix))
@@ -401,7 +401,7 @@ def evaluate(args, model, tokenizer, prefix=""):
 
     # Compute the F1 and exact scores.
     results = squad_evaluate(examples, predictions)
-    print(results)
+    logger.info(f"F1: {results['f1']}, EM: {results['exact']}")
     return results
 
 
