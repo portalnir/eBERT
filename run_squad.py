@@ -292,7 +292,8 @@ def evaluate(args, model, tokenizer, prefix=""):
     all_results = []
     start_time = timeit.default_timer()
 
-    for batch in tqdm(eval_dataloader, desc="Evaluating"):
+    eval_progressbar = tqdm(eval_dataloader, desc="Evaluating", leave=True, position=0)
+    for batch in eval_progressbar:
         model.eval()
         batch = tuple(t.to(args.device) for t in batch)
 
@@ -347,6 +348,7 @@ def evaluate(args, model, tokenizer, prefix=""):
                 result = SquadResult(unique_id, start_logits, end_logits)
 
             all_results.append(result)
+        eval_progressbar.update()
 
     evalTime = timeit.default_timer() - start_time
     logger.info("  Evaluation done in total %f secs (%f sec per example)", evalTime, evalTime / len(dataset))
