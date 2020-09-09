@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-from tqdm.auto import tqdm, trange
+from tqdm import tqdm, trange
 
 from transformers import (
     MODEL_FOR_QUESTION_ANSWERING_MAPPING,
