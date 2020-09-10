@@ -52,9 +52,11 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
-MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
+from bert import *
 
+MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
+MODEL_CONFIG_CLASSES.append(BertGRUConfig)
+MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 def set_seed(args):
     random.seed(args.seed)
@@ -476,8 +478,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
         return dataset, examples, features
     return dataset
 
-
-def main():
+def parse_arguments():
     parser = argparse.ArgumentParser()
 
     # Required parameters
@@ -667,6 +668,13 @@ def main():
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
     args = parser.parse_args()
 
+    from pprint import pprint
+    pprint(args)
+    return None
+    return args
+
+
+def main_logic(args):
     if args.doc_stride >= args.max_seq_length - args.max_query_length:
         logger.warning(
             "WARNING - You've set a doc stride which may be superior to the document length in some "
@@ -709,7 +717,7 @@ def main():
     # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
+        datefmt="%d/%m/%Y %H:%M:%S",
         level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN,
     )
     logger.warning(
@@ -744,6 +752,14 @@ def main():
         from_tf=bool(".ckpt" in args.model_name_or_path),
         config=config,
         cache_dir=args.cache_dir if args.cache_dir else None,
+    )
+
+    # TODO: make this more generic
+    model = BertGRU.from_pretrained(
+        args.model_name_or_path,
+        from_tf=bool(".ckpt" in args.model_name_or_path),
+        config=config,
+        cache_dir=args.cache_dir if args.cache_dir else None
     )
 
     if args.local_rank == 0:
@@ -824,5 +840,58 @@ def main():
     return results
 
 
+class SquadRunConfig(object):
+    def __init__(self,
+                 model_type,
+                 model_name_or_path,
+                 output_dir,
+                 adam_epsilon=1e-08,
+                 cache_dir='',
+                 config_name='',
+                 data_dir=None,
+                 do_eval=False,
+                 do_lower_case=False,
+                 do_train=False,
+                 doc_stride=128,
+                 eval_all_checkpoints=False,
+                 evaluate_during_training=False,
+                 fp16=False,
+                 fp16_opt_level='O1',
+                 gradient_accumulation_steps=1,
+                 lang_id=0,
+                 learning_rate=5e-05,
+                 local_rank=-1,
+                 logging_steps=500,
+                 max_answer_length=30,
+                 max_grad_norm=1.0,
+                 max_query_length=64,
+                 max_seq_length=384,
+                 max_steps=-1,
+                 n_best_size=20,
+                 no_cuda=False,
+                 null_score_diff_threshold=0.0,
+                 num_train_epochs=3.0,
+                 overwrite_cache=False,
+                 overwrite_output_dir=False,
+                 per_gpu_eval_batch_size=8,
+                 per_gpu_train_batch_size=8,
+                 predict_file=None,
+                 save_steps=500,
+                 seed=42,
+                 server_ip='',
+                 server_port='',
+                 threads=1,
+                 tokenizer_name='',
+                 train_file=None,
+                 verbose_logging=False,
+                 version_2_with_negative=False,
+                 warmup_steps=0,
+                 weight_decay=0.0):
+        for key, value in locals().items():
+            setattr(self, key, value)
+
 if __name__ == "__main__":
-    main()
+    config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", output_dir="output/bert_base_uncased",
+                            data_dir="./data/small", cache_dir="./data/small/cache", do_train=True, version_2_with_negative=True,
+                            do_lower_case=True, per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3)
+    main_logic(args = config)
