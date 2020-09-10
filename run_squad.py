@@ -53,7 +53,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-from bert import *
+from models.bert import *
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
 MODEL_CONFIG_CLASSES.append(BertGRUConfig)
