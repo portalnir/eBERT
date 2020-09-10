@@ -4,6 +4,7 @@ from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
 from transformers import BertPreTrainedModel, BertModel, BertConfig
 from transformers.modeling_outputs import QuestionAnsweringModelOutput
+from models.highway import Highway
 
 # ============== Layers ===============
 
@@ -24,13 +25,10 @@ class GRUDecoder(nn.Module):
         self.hidden_size = hidden_size
         self.gru = nn.GRU(input_size=hidden_size, hidden_size=hidden_size, dropout=dropout,
                           num_layers=num_layers, bidirectional=bidirectional, batch_first=batch_first)
-        self.out = nn.Linear(hidden_size, output_size)
-        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input, hidden):
         output = F.relu(input)
         output, hidden = self.gru(output, hidden)
-        output = self.softmax(self.out(output))
         return output, hidden
 
 # ============== Models ===============
@@ -44,10 +42,12 @@ class BertGRU(BertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         gru_decoder_out_features = 768
+        gru_encoder_out_features = 768
         self.bert = BertModel(config)
         # Encoding
-        self.gru_encoder = GRUEncoder(input_size=768, hidden_size=768, dropout=0, num_layers=1, bidirectional=False, batch_first=True)
+        self.gru_encoder = GRUEncoder(input_size=768, hidden_size=gru_encoder_out_features, dropout=0, num_layers=1, bidirectional=False, batch_first=True)
         # Decoding back
+        self.highway = Highway(gru_encoder_out_features, num_layers=2, f=F.relu)
         self.gru_decoder = GRUDecoder(hidden_size=768, output_size=gru_decoder_out_features, batch_first=True)
         # two labels for each token - the probability to be the start and end indices of the answer
         self.qa_outputs = nn.Linear(in_features=gru_decoder_out_features, out_features=2)
@@ -93,9 +93,9 @@ class BertGRU(BertPreTrainedModel):
         )
 
         sequence_hidden, sequence_pooler = outputs
-        encoded_out, encoded_hidden  = self.gru_encoder(sequence_hidden)
+        encoded_out, encoded_hidden = self.gru_encoder(sequence_hidden)
+        encoded_out = self.highway(encoded_out)
         decoded_out, decoded_hidden = self.gru_decoder(encoded_out, encoded_hidden)
-
 
         logits = self.qa_outputs(decoded_out)
         start_logits, end_logits = logits.split(1, dim=-1)
