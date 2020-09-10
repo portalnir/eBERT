@@ -669,9 +669,6 @@ def parse_arguments():
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
     args = parser.parse_args()
 
-    from pprint import pprint
-    pprint(args)
-    return None
     return args
 
 
