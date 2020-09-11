@@ -5,54 +5,105 @@ from torch.nn import functional as F
 from transformers import BertPreTrainedModel, BertModel, BertConfig
 from transformers.modeling_outputs import QuestionAnsweringModelOutput
 from models.highway import Highway
+from models.convlstm import ConvLSTM
 
-# ============== Layers ===============
+# ============== Encoders ===============
+class ConvLSTMEncoder(nn.Module):
+    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers):
+        super(ConvLSTMEncoder, self).__init__()
+        self.convlstm = ConvLSTM(input_dim, hidden_dim, kernel_size, num_layers, batch_first=True)
+
+    def forward(self, x):
+        batch_size, seq_length, features = x.shape
+        x = x.view(batch_size, seq_length, 1, 32, features/32)
+        x, _ = self.convlstm(x)  # (batch_size, seq_len, 2 * hidden_size)
+        # Apply dropout (RNN applies dropout after all but the last layer)
+        x = F.dropout(x, self.drop_prob, self.training)
+        return x
+
+class BiLSTMEncoder(nn.Module):
+    def __init__(self,
+                 input_size,
+                 hidden_size,
+                 num_layers,
+                 drop_prob=0.):
+        super(BiLSTMEncoder, self).__init__()
+        self.drop_prob = drop_prob
+        self.bilstm = nn.LSTM(input_size, hidden_size, num_layers,
+                              batch_first=True,
+                              bidirectional=True,
+                              dropout=drop_prob if num_layers > 1 else 0.)
+
+    def forward(self, x):
+        # Apply RNN
+        x, _ = self.bilstm(x)  # (batch_size, seq_len, 2 * hidden_size)
+        # Apply dropout (RNN applies dropout after all but the last layer)
+        x = F.dropout(x, self.drop_prob, self.training)
+        return x
 
 class GRUEncoder(nn.Module):
-    def __init__(self, input_size=768, hidden_size=768, dropout=0.0, num_layers=1, bidirectional=False, batch_first=True):
+    def __init__(self,
+                 input_size,
+                 hidden_size,
+                 num_layers,
+                 drop_prob=0.):
         super(GRUEncoder, self).__init__()
-        self.hidden_size = hidden_size
-        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size, dropout=dropout,
-                          num_layers=num_layers, bidirectional=bidirectional, batch_first=batch_first)
+        self.drop_prob = drop_prob
+        self.gru = nn.GRU(input_size, hidden_size, num_layers,
+                          batch_first=True,
+                          bidirectional=False,
+                          dropout=drop_prob if num_layers > 1 else 0.)
 
+    def forward(self, x):
+        # Apply RNN
+        x, _ = self.gru(x)  # (batch_size, seq_len, hidden_size)
+        # Apply dropout (RNN applies dropout after all but the last layer)
+        x = F.dropout(x, self.drop_prob, self.training)
+        return x
+
+# ============== Extensions ===============
+class BiLSTMHighway(nn.Module):
+    def __init__(self,):
+        super(BiLSTMHighway, self).__init__()
+        self.bilstm_encoder = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.highway = Highway(size=768 * 2, num_layers=2, f=F.relu)
+        # lower the hidden size back to 768 due to bidirectionality
+        self.linear = nn.Linear(768 * 2, 768)
+
+    # input is always (batch, seq_len, hidden_size)
+    # output should always be ( batch size , seq_len , hidden_size)
     def forward(self, input):
-        output, hidden = self.gru(input)
-        return output, hidden
+        x = self.bilstm_encoder(input)
+        x = self.highway(x)
+        x = self.linear(x)
+        return x
 
-class GRUDecoder(nn.Module):
-    def __init__(self, output_size=768, hidden_size=768, dropout=0.0, num_layers=1, bidirectional=False, batch_first=True):
-        super(GRUDecoder, self).__init__()
-        self.hidden_size = hidden_size
-        self.gru = nn.GRU(input_size=hidden_size, hidden_size=hidden_size, dropout=dropout,
-                          num_layers=num_layers, bidirectional=bidirectional, batch_first=batch_first)
+class GRUHighway(nn.Module):
+    def __init__(self,):
+        super(GRUHighway, self).__init__()
+        self.gru_encoder = GRUEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.highway = Highway(size=768, num_layers=2, f=F.relu)
 
-    def forward(self, input, hidden):
-        output = F.relu(input)
-        output, hidden = self.gru(output, hidden)
-        return output, hidden
-
+    # input is always (batch, seq_len, hidden_size)
+    # output should always be ( batch size , seq_len , hidden_size)
+    def forward(self, input):
+        x = self.gru_encoder(input)
+        x = self.highway(x)
+        return x
 # ============== Models ===============
-
-class BertGRUConfig(BertConfig):
-    model_type = "bert_gru"
-    def __init__(self, *args, **kwargs):
-        super(self, BertGRUConfig).__init__(*args, **kwargs)
-
-class BertGRU(BertPreTrainedModel):
+class BertExtended(BertPreTrainedModel):
     def __init__(self, config):
-        super().__init__(config)
-        gru_decoder_out_features = 768
-        gru_encoder_out_features = 768
+        super(BertExtended, self).__init__(config)
         self.bert = BertModel(config)
-        # Encoding
-        self.gru_encoder = GRUEncoder(input_size=768, hidden_size=gru_encoder_out_features, dropout=0, num_layers=1, bidirectional=False, batch_first=True)
-        # Decoding back
-        self.highway = Highway(gru_encoder_out_features, num_layers=2, f=F.relu)
-        self.gru_decoder = GRUDecoder(hidden_size=768, output_size=gru_decoder_out_features, batch_first=True)
+        # set extension to be None in the default case
+        self.extension = None
         # two labels for each token - the probability to be the start and end indices of the answer
-        self.qa_outputs = nn.Linear(in_features=gru_decoder_out_features, out_features=2)
+        self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
+
+    def set_extension(self, extension):
+        self.extension = extension
 
     def forward(
         self,
@@ -93,11 +144,12 @@ class BertGRU(BertPreTrainedModel):
         )
 
         sequence_hidden, sequence_pooler = outputs
-        encoded_out, encoded_hidden = self.gru_encoder(sequence_hidden)
-        encoded_out = self.highway(encoded_out)
-        decoded_out, decoded_hidden = self.gru_decoder(encoded_out, encoded_hidden)
 
-        logits = self.qa_outputs(decoded_out)
+        # Run the extension if available
+        if self.extension:
+            sequence_hidden = self.extension(sequence_hidden)
+
+        logits = self.qa_outputs(sequence_hidden)
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)

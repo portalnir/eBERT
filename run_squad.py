@@ -56,7 +56,6 @@ logger = logging.getLogger(__name__)
 from models.bert import *
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
-MODEL_CONFIG_CLASSES.append(BertGRUConfig)
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 def set_seed(args):
@@ -753,12 +752,13 @@ def main_logic(args):
     )
 
     # TODO: make this more generic
-    model = BertGRU.from_pretrained(
+    model = BertExtended.from_pretrained(
         args.model_name_or_path,
         from_tf=bool(".ckpt" in args.model_name_or_path),
         config=config,
-        cache_dir=args.cache_dir if args.cache_dir else None
+        cache_dir=args.cache_dir if args.cache_dir else None,
     )
+    model.set_extension(BiLSTMHighway())
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
