@@ -50,29 +50,37 @@ class BiLSTMConvolution(nn.Module):
     def __init__(self):
         super(BiLSTMConvolution, self).__init__()
         self.use_internal_qa_outputs = True
-        self.bilstm = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.conv_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=3)
+        self.bilstm = BiLSTMEncoder(input_size=762, hidden_size=768, num_layers=2, drop_prob=0.2)
+
         self.max_pool = nn.MaxPool1d(kernel_size=3)
-        self.qa_output = nn.Linear(766, 2)
+        self.qa_output = nn.Linear(768 * 2, 2)
 
     def forward(self, x):
-        # Move embeddings through BiLSTM
-        output = self.bilstm(x)
-        # Separate the two-directions contexts
-        left_cx = output[:, :, :768]
-        right_cx = output[:, :, 768:]
-        # Concatenate left and right contexts with the original embeddings
-        concat = torch.cat((left_cx, x, right_cx), dim=2)
-        # Convolve
-        for i in range(3):
-            concat = self.conv_3(concat)
-            concat = F.relu(concat)
-        concat = self.max_pool(concat)
+        x = F.relu(self.conv_3(x))
+        x = F.relu(self.conv_3(x))
+        x = F.relu(self.conv_3(x))
+        x = self.bilstm(x)
+        x = self.qa_output(x)
+        return x
 
-        # Apply QA output layer
-        concat = self.qa_output(concat)
+        ## Move embeddings through BiLSTM
+        #output = self.bilstm(x)
+        ## Separate the two-directions contexts
+        #left_cx = output[:, :, :768]
+        #right_cx = output[:, :, 768:]
+        ## Concatenate left and right contexts with the original embeddings
+        #concat = torch.cat((left_cx, x, right_cx), dim=2)
+        ## Convolve
+        #for i in range(3):
+        #    concat = self.conv_3(concat)
+        #    concat = F.relu(concat)
+        #concat = self.max_pool(concat)
 
-        return concat
+        ## Apply QA output layer
+        #concat = self.qa_output(concat)
+
+        #return concat
 
 
 class GRUEncoder(nn.Module):
