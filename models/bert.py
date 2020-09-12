@@ -12,12 +12,17 @@ class Conv1DEncoder(nn.Module):
     def __init__(self):
         super(Conv1DEncoder, self).__init__()
         self.use_internal_qa_outputs = False
-        self.conv1d_1 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
+        self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.conv1d_2 = nn.Conv1d(in_channels=1024, out_channels=1024, kernel_size=5)
+        self.conv1d_2 = nn.Conv1d(in_channels=1024, out_channels=384, kernel_size=5)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=2)
         self.fc = nn.Linear(768, 2)
 
     def forward(self, input):
-        output = self.conv1d_1(input)
+        output = input.permute(0, 2, 1)
+        output = self.conv1d_1(output)
+        output = self.conv1d_1(output)
+        output = output.permute(0, 2, 1)
         # output = torch.tanh(output)
         # output = self.conv1d_1(output)
         # output = torch.tanh(output)
