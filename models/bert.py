@@ -50,16 +50,14 @@ class BiLSTMConvolution(nn.Module):
     def __init__(self):
         super(BiLSTMConvolution, self).__init__()
         self.use_internal_qa_outputs = True
-        self.conv_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=3)
+        self.conv_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
         self.bilstm = BiLSTMEncoder(input_size=762, hidden_size=768, num_layers=2, drop_prob=0.2)
-
-        self.max_pool = nn.MaxPool1d(kernel_size=3)
         self.qa_output = nn.Linear(768 * 2, 2)
 
     def forward(self, x):
-        x = F.relu(self.conv_3(x))
-        x = F.relu(self.conv_3(x))
-        x = F.relu(self.conv_3(x))
+        x = torch.tanh(self.conv_3(x))
+        x = torch.tanh(self.conv_3(x))
+        x = torch.tanh(self.conv_3(x))
         x = self.bilstm(x)
         x = self.qa_output(x)
         return x
