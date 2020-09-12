@@ -11,7 +11,7 @@ from models.convlstm import ConvLSTM
 class Conv1DEncoder(nn.Module):
     def __init__(self):
         super(Conv1DEncoder, self).__init__()
-        self.use_internal_qa_outputs = True
+        self.use_internal_qa_outputs = False
         self.conv1d_1 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=2)
         self.fc = nn.Linear(768, 2)
@@ -23,7 +23,7 @@ class Conv1DEncoder(nn.Module):
         # output = torch.tanh(output)
         # output = self.maxpool_3(output)
         # output = F.dropout(output, p=0.2, training=self.training)
-        output = self.fc(output)
+        # output = self.fc(output)
         return output
 
 class BiLSTMEncoder(nn.Module):
