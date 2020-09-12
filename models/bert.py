@@ -20,8 +20,9 @@ class Conv1DEncoder(nn.Module):
 
     def forward(self, input):
         output = input.permute(0, 2, 1)
-        output = self.conv1d_1(output)
-        output = self.conv1d_1(output)
+        output = F.relu(self.conv1d_1(output))
+        output = F.relu(self.conv1d_1(output))
+        output = F.relu(self.conv1d_1(output))
         output = output.permute(0, 2, 1)
         # output = torch.tanh(output)
         # output = self.conv1d_1(output)
