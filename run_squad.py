@@ -417,9 +417,9 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
         torch.distributed.barrier()
 
     # Load data features from cache or dataset file
-    input_dir = args.data_dir if args.data_dir else "."
+    cache_dir = args.cache_dir if args.cache_dir else "."
     cached_features_file = os.path.join(
-        input_dir,
+        cache_dir,
         "cached_{}_{}_{}_{}".format(
             "dev" if evaluate else "train",
             list(filter(None, args.model_name_or_path.split("/"))).pop(),
@@ -438,7 +438,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
             features_and_dataset["examples"],
         )
     else:
-        logger.info("Creating features from dataset file at %s", input_dir)
+        logger.info("Creating features from dataset file at %s", cache_dir)
 
         if not args.data_dir and ((evaluate and not args.predict_file) or (not evaluate and not args.train_file)):
             try:
