@@ -12,16 +12,15 @@ class Conv1DEncoder(nn.Module):
     def __init__(self):
         super(Conv1DEncoder, self).__init__()
         self.use_internal_qa_outputs = True
-        self.conv1d_5 = nn.Conv1d(in_channels=384, out_channels=192, kernel_size=1)
-        self.conv1d_7 = nn.Conv1d(in_channels=192, out_channels=384, kernel_size=1)
+        self.conv1d_1 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
         self.fc = nn.Linear(256, 2)
 
     def forward(self, input):
-        output = self.conv1d_5(input)
-        output = F.relu(output)
-        output = self.conv1d_7(output)
-        output = F.relu(output)
+        output = self.conv1d_1(input)
+        output = F.tanh(output)
+        output = self.conv1d_1(output)
+        output = F.tanh(output)
         output = self.maxpool_3(output)
         output = F.dropout(output, p=0.2, training=self.training)
         output = self.fc(output)
