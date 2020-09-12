@@ -54,7 +54,7 @@ class BiLSTMConvolution(nn.Module):
         self.bilstm = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.conv_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=3)
         self.max_pool = nn.MaxPool1d(kernel_size=3)
-        self.qa_output = nn.Linear(253, 2)
+        self.qa_output = nn.Linear(766, 2)
 
     def forward(self, x):
         # Move embeddings through BiLSTM
@@ -65,11 +65,10 @@ class BiLSTMConvolution(nn.Module):
         # Concatenate left and right contexts with the original embeddings
         concat = torch.cat((left_cx, x, right_cx), dim=2)
         # Convolve
-        for i in range(2):
-            for i in range(3):
-                concat = self.conv_3(concat)
-                concat = F.relu(concat)
-            concat = self.max_pool(concat)
+        for i in range(3):
+            concat = self.conv_3(concat)
+            concat = F.relu(concat)
+        concat = self.max_pool(concat)
 
         # Apply QA output layer
         concat = self.qa_output(concat)
