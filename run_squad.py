@@ -76,7 +76,9 @@ def train(args, train_dataset, model, tokenizer):
         tb_writer = SummaryWriter()
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
+    # train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
+    # If we are using training strategy, cancel random shuffeling of the data
+    train_sampler = RandomSampler(train_dataset) if args.train_strategy == '' else SequentialSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
     if args.max_steps > 0:
@@ -418,10 +420,11 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     input_dir = args.data_dir if args.data_dir else "."
     cached_features_file = os.path.join(
         input_dir,
-        "cached_{}_{}_{}".format(
+        "cached_{}_{}_{}_{}".format(
             "dev" if evaluate else "train",
             list(filter(None, args.model_name_or_path.split("/"))).pop(),
             str(args.max_seq_length),
+            args.train_strategy,
         ),
     )
 
@@ -454,6 +457,14 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
                 examples = processor.get_dev_examples(args.data_dir, filename=args.predict_file)
             else:
                 examples = processor.get_train_examples(args.data_dir, filename=args.train_file)
+
+
+        if args.train_strategy == "long2short":
+            # Sort data from longest -> shortest context
+            examples.sort(key=lambda example: len(example.context_text), reverse=True)
+        elif args.train_strategy == "short2long":
+            # Sort data from shortest -> longest context
+            examples.sort(key=lambda example: len(example.context_text), reverse=False)
 
         features, dataset = squad_convert_examples_to_features(
             examples=examples,
@@ -664,6 +675,7 @@ def parse_arguments():
     )
     parser.add_argument("--server_ip", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="Can be used for distant debugging.")
+    parser.add_argument("--train_strategy", type=str, default="", help="Defines the training strategy")
 
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
     args = parser.parse_args()
@@ -758,7 +770,10 @@ def main_logic(args):
         config=config,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
-    model.set_extension(BiLSTMHighway())
+    # model.set_extension(BiLSTMHighway())
+    # model.set_extension(GRUHighway())
+    # model.set_extension(Conv1DEncoderDecoder())
+    model.set_extension(BiLSTMConvolution())
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
@@ -881,6 +896,7 @@ class SquadRunConfig(object):
                  threads=1,
                  tokenizer_name='',
                  train_file=None,
+                 train_strategy='',
                  verbose_logging=False,
                  version_2_with_negative=False,
                  warmup_steps=0,
@@ -891,7 +907,7 @@ class SquadRunConfig(object):
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
         config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", output_dir="output/bert_base_uncased",
-                                data_dir="./data/small", cache_dir="./data/small/cache", do_train=True, version_2_with_negative=True,
+                                data_dir="./data/small", cache_dir="./cache/small", do_train=True, version_2_with_negative=True,
                                 do_lower_case=True, per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3)
         main_logic(args = config)
     else:

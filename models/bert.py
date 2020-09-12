@@ -8,18 +8,24 @@ from models.highway import Highway
 from models.convlstm import ConvLSTM
 
 # ============== Encoders ===============
-class ConvLSTMEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers):
-        super(ConvLSTMEncoder, self).__init__()
-        self.convlstm = ConvLSTM(input_dim, hidden_dim, kernel_size, num_layers, batch_first=True)
+class Conv1DEncoder(nn.Module):
+    def __init__(self):
+        super(Conv1DEncoder, self).__init__()
+        self.use_internal_qa_outputs = True
+        self.conv1d_5 = nn.Conv1d(in_channels=384, out_channels=192, kernel_size=5)
+        self.conv1d_7 = nn.Conv1d(in_channels=192, out_channels=384, kernel_size=7)
+        self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
+        self.fc = nn.Linear(252, 2)
 
-    def forward(self, x):
-        batch_size, seq_length, features = x.shape
-        x = x.view(batch_size, seq_length, 1, 32, features/32)
-        x, _ = self.convlstm(x)  # (batch_size, seq_len, 2 * hidden_size)
-        # Apply dropout (RNN applies dropout after all but the last layer)
-        x = F.dropout(x, self.drop_prob, self.training)
-        return x
+    def forward(self, input):
+        output = self.conv1d_5(input)
+        output = F.relu(output)
+        output = self.conv1d_7(output)
+        output = F.relu(output)
+        output = self.maxpool_3(output)
+        output = F.dropout(output, p=0.2, training=self.training)
+        output = self.fc(output)
+        return output
 
 class BiLSTMEncoder(nn.Module):
     def __init__(self,
@@ -40,6 +46,36 @@ class BiLSTMEncoder(nn.Module):
         # Apply dropout (RNN applies dropout after all but the last layer)
         x = F.dropout(x, self.drop_prob, self.training)
         return x
+
+class BiLSTMConvolution(nn.Module):
+    def __init__(self):
+        super(BiLSTMConvolution, self).__init__()
+        self.use_internal_qa_outputs = True
+        self.bilstm = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.conv_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=3)
+        self.max_pool = nn.MaxPool1d(kernel_size=3)
+        self.qa_output = nn.Linear(253, 2)
+
+    def forward(self, x):
+        # Move embeddings through BiLSTM
+        output = self.bilstm(x)
+        # Separate the two-directions contexts
+        left_cx = output[:, :, :768]
+        right_cx = output[:, :, 768:]
+        # Concatenate left and right contexts with the original embeddings
+        concat = torch.cat((left_cx, x, right_cx), dim=2)
+        # Convolve
+        for i in range(2):
+            for i in range(3):
+                concat = self.conv_3(concat)
+                concat = F.relu(concat)
+            concat = self.max_pool(concat)
+
+        # Apply QA output layer
+        concat = self.qa_output(concat)
+
+        return concat
+
 
 class GRUEncoder(nn.Module):
     def __init__(self,
@@ -65,10 +101,11 @@ class GRUEncoder(nn.Module):
 class BiLSTMHighway(nn.Module):
     def __init__(self,):
         super(BiLSTMHighway, self).__init__()
+        self.use_internal_qa_outputs = True
         self.bilstm_encoder = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.highway = Highway(size=768 * 2, num_layers=2, f=F.relu)
         # lower the hidden size back to 768 due to bidirectionality
-        self.linear = nn.Linear(768 * 2, 768)
+        self.linear = nn.Linear(768 * 2, 2)
 
     # input is always (batch, seq_len, hidden_size)
     # output should always be ( batch size , seq_len , hidden_size)
@@ -81,6 +118,7 @@ class BiLSTMHighway(nn.Module):
 class GRUHighway(nn.Module):
     def __init__(self,):
         super(GRUHighway, self).__init__()
+        self.use_internal_qa_outputs = False
         self.gru_encoder = GRUEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.highway = Highway(size=768, num_layers=2, f=F.relu)
 
@@ -146,10 +184,15 @@ class BertExtended(BertPreTrainedModel):
         sequence_hidden, sequence_pooler = outputs
 
         # Run the extension if available
-        if self.extension:
-            sequence_hidden = self.extension(sequence_hidden)
+        if not self.extension:
+            raise(RuntimeError("Bert extension was not set!"))
 
-        logits = self.qa_outputs(sequence_hidden)
+        sequence_hidden = self.extension(sequence_hidden)
+        if self.extension.use_internal_qa_outputs:
+            logits = sequence_hidden
+        else:
+            logits = self.qa_outputs(sequence_hidden)
+
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
