@@ -18,11 +18,11 @@ class Conv1DEncoder(nn.Module):
 
     def forward(self, input):
         output = self.conv1d_1(input)
-        output = torch.tanh(output)
-        #output = self.conv1d_1(output)
-        #output = torch.tanh(output)
-        #output = self.maxpool_3(output)
-        #output = F.dropout(output, p=0.2, training=self.training)
+        # output = torch.tanh(output)
+        # output = self.conv1d_1(output)
+        # output = torch.tanh(output)
+        # output = self.maxpool_3(output)
+        # output = F.dropout(output, p=0.2, training=self.training)
         output = self.fc(output)
         return output
 
