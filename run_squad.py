@@ -676,6 +676,7 @@ def parse_arguments():
     parser.add_argument("--server_ip", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--train_strategy", type=str, default="", help="Defines the training strategy")
+    parser.add_argument("--bert_extension", type=str, default="", help="Defines the extension network on top of BERT")
 
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
     args = parser.parse_args()
@@ -763,17 +764,21 @@ def main_logic(args):
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
 
-    # TODO: make this more generic
-    model = BertExtended.from_pretrained(
-        args.model_name_or_path,
-        from_tf=bool(".ckpt" in args.model_name_or_path),
-        config=config,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
-    # model.set_extension(BiLSTMHighway())
-    # model.set_extension(GRUHighway())
-    # model.set_extension(Conv1DEncoderDecoder())
-    model.set_extension(BiLSTMConvolution())
+    if args.bert_extension:
+        args.bert_extension = args.bert_extension.lower()
+        model = BertExtended.from_pretrained(
+            args.model_name_or_path,
+            from_tf=bool(".ckpt" in args.model_name_or_path),
+            config=config,
+            cache_dir=args.cache_dir if args.cache_dir else None,
+        )
+        bert_extension = {
+            "bilstm_highway" : BiLSTMHighway(),
+            "gru_highway" : GRUHighway(),
+            "conv1d" : Conv1DEncoder(),
+            "bilstm_cnn" : BiLSTMConvolution(),
+        }
+        model.set_extension(bert_extension[args.bert_extension])
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
@@ -859,6 +864,7 @@ class SquadRunConfig(object):
                  model_name_or_path,
                  output_dir,
                  adam_epsilon=1e-08,
+                 bert_extension='',
                  cache_dir='',
                  config_name='',
                  data_dir=None,
@@ -906,9 +912,10 @@ class SquadRunConfig(object):
 
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
-        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", output_dir="output/bert_base_uncased",
-                                data_dir="./data/small", cache_dir="./cache/small", do_train=True, version_2_with_negative=True,
-                                do_lower_case=True, per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3)
+        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="bilstm_cnn",
+                                output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
+                                do_train=True, version_2_with_negative=True, do_lower_case=True,
+                                per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3)
         main_logic(args = config)
     else:
         main_logic(args = parse_arguments())
