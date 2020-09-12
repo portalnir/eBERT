@@ -18,9 +18,9 @@ class Conv1DEncoder(nn.Module):
 
     def forward(self, input):
         output = self.conv1d_1(input)
-        output = F.tanh(output)
+        output = torch.tanh(output)
         output = self.conv1d_1(output)
-        output = F.tanh(output)
+        output = torch.tanh(output)
         output = self.maxpool_3(output)
         output = F.dropout(output, p=0.2, training=self.training)
         output = self.fc(output)
@@ -132,7 +132,7 @@ class BertExtended(BertPreTrainedModel):
         super(BertExtended, self).__init__(config)
         self.bert = BertModel(config)
         # set extension to be None in the default case
-        self.extension = None
+        self.extension = Conv1DEncoder()
         # two labels for each token - the probability to be the start and end indices of the answer
         self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
