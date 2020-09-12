@@ -96,7 +96,8 @@ def train(args, train_dataset, model, tokenizer):
         },
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
     ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    # optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    optimizer = AdamW(model.parameters(), lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
     )
@@ -912,7 +913,7 @@ class SquadRunConfig(object):
 
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
-        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="bilstm_cnn",
+        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="conv1d",
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
                                 do_train=True, version_2_with_negative=True, do_lower_case=True,
                                 per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3)
