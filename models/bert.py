@@ -132,7 +132,7 @@ class BertExtended(BertPreTrainedModel):
         super(BertExtended, self).__init__(config)
         self.bert = BertModel(config)
         # set extension to be None in the default case
-        self.extension = Conv1DEncoder()
+        self.extension = None
         # two labels for each token - the probability to be the start and end indices of the answer
         self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
