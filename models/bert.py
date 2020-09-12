@@ -13,23 +13,18 @@ class Conv1DEncoder(nn.Module):
         super(Conv1DEncoder, self).__init__()
         self.use_internal_qa_outputs = False
         self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
-        self.conv1d_2 = nn.Conv1d(in_channels=1024, out_channels=1024, kernel_size=5)
-        self.conv1d_2 = nn.Conv1d(in_channels=1024, out_channels=384, kernel_size=5)
+        self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=2)
         self.fc = nn.Linear(768, 2)
 
     def forward(self, input):
         output = input.permute(0, 2, 1)
-        output = F.relu(self.conv1d_1(output))
-        output = F.relu(self.conv1d_1(output))
-        output = F.relu(self.conv1d_1(output))
+        output = F.tanh(self.conv1d_1(output))
+        output = F.tanh(self.conv1d_2(output))
+        output = F.tanh(self.conv1d_3(output))
         output = output.permute(0, 2, 1)
-        # output = torch.tanh(output)
-        # output = self.conv1d_1(output)
-        # output = torch.tanh(output)
-        # output = self.maxpool_3(output)
-        # output = F.dropout(output, p=0.2, training=self.training)
-        # output = self.fc(output)
+
         return output
 
 class BiLSTMEncoder(nn.Module):
