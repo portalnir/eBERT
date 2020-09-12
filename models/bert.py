@@ -14,15 +14,15 @@ class Conv1DEncoder(nn.Module):
         self.use_internal_qa_outputs = True
         self.conv1d_1 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=2)
-        self.fc = nn.Linear(384, 2)
+        self.fc = nn.Linear(768, 2)
 
     def forward(self, input):
         output = self.conv1d_1(input)
         output = torch.tanh(output)
-        output = self.conv1d_1(output)
-        output = torch.tanh(output)
-        output = self.maxpool_3(output)
-        output = F.dropout(output, p=0.2, training=self.training)
+        #output = self.conv1d_1(output)
+        #output = torch.tanh(output)
+        #output = self.maxpool_3(output)
+        #output = F.dropout(output, p=0.2, training=self.training)
         output = self.fc(output)
         return output
 
@@ -51,7 +51,7 @@ class BiLSTMConvolution(nn.Module):
         super(BiLSTMConvolution, self).__init__()
         self.use_internal_qa_outputs = True
         self.conv_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
-        self.bilstm = BiLSTMEncoder(input_size=762, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.bilstm = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.qa_output = nn.Linear(768 * 2, 2)
 
     def forward(self, x):

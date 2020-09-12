@@ -912,7 +912,7 @@ class SquadRunConfig(object):
 
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
-        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="bilstm_conv",
+        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="conv1d",
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
                                 do_train=True, version_2_with_negative=True, do_lower_case=True,
                                 per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3)
