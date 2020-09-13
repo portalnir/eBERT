@@ -14,18 +14,23 @@ class Conv1DEncoder(nn.Module):
         self.use_internal_qa_outputs = False
         self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
-        self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
-        self.maxpool_3 = nn.MaxPool1d(kernel_size=2)
-        self.fc = nn.Linear(768, 2)
+        self.conv1d_3= nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
+        self.fc = nn.Linear(128, 384)
 
     def forward(self, input):
+        # permute embeddings - else the model will be destroyed
         output = input.permute(0, 2, 1)
         output = F.tanh(self.conv1d_1(output))
         output = F.tanh(self.conv1d_2(output))
         output = F.tanh(self.conv1d_3(output))
+        output = self.maxpool_3(output)
+        output = self.fc(output)
+        # back to normal
         output = output.permute(0, 2, 1)
 
         return output
+
 
 class BiLSTMEncoder(nn.Module):
     def __init__(self,
