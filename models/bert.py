@@ -28,8 +28,6 @@ class Conv1DEncoder(nn.Module):
         output = output.permute(0, 2, 1)
         output = self.maxpool_3(output)
         output = self.fc(output)
-        # back to normal
-        output = output.permute(0, 2, 1)
 
         return output
 
