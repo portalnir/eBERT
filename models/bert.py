@@ -21,9 +21,9 @@ class Conv1DEncoder(nn.Module):
     def forward(self, input):
         # permute embeddings - else the model will be destroyed
         output = input.permute(0, 2, 1)
-        output = F.tanh(self.conv1d_1(output))
-        output = F.tanh(self.conv1d_2(output))
-        output = F.tanh(self.conv1d_3(output))
+        output = torch.tanh(self.conv1d_1(output))
+        output = torch.tanh(self.conv1d_2(output))
+        output = torch.tanh(self.conv1d_3(output))
         # back to normal
         output = output.permute(0, 2, 1)
         output = self.maxpool_3(output)
@@ -56,11 +56,12 @@ class BiLSTMConvolution(nn.Module):
     def __init__(self):
         super(BiLSTMConvolution, self).__init__()
         self.use_internal_qa_outputs = True
-        self.conv1d_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
-        self.conv1d_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
-        self.conv1d_3 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=1)
         self.bilstm = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
-        self.qa_output = nn.Linear(768 * 2, 2)
+        self.conv1d_1 = nn.Conv1d(in_channels=2304, out_channels=1536, kernel_size=5, padding=2)
+        self.conv1d_2 = nn.Conv1d(in_channels=1536, out_channels=768, kernel_size=5, padding=2)
+        self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
+        self.fc = nn.Linear(256, 2)
 
     def forward(self, x):
         # Move embeddings through BiLSTM
@@ -71,12 +72,15 @@ class BiLSTMConvolution(nn.Module):
         # Concatenate left and right contexts with the original embeddings
         concat = torch.cat((left_cx, x, right_cx), dim=2)
         # Convolve
-        for i in range(3):
-            concat = self.conv_3(concat)
-            concat = F.relu(concat)
-        concat = self.max_pool(concat)
-        # Apply QA output layer
-        concat = self.qa_output(concat)
+        concat = concat.permute(0, 2, 1)
+        concat = torch.tanh(self.conv1d_1(concat))
+        concat = torch.tanh(self.conv1d_2(concat))
+        concat = torch.tanh(self.conv1d_3(concat))
+        # back to normal
+        concat = concat.permute(0, 2, 1)
+        concat = self.maxpool_3(concat)
+        concat = self.fc(concat)
+
         return concat
 
 
