@@ -2,75 +2,77 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
-from transformers import BertPreTrainedModel, BertModel, BertConfig
+from transformers import BertPreTrainedModel, BertModel
 from transformers.modeling_outputs import QuestionAnsweringModelOutput
 from models.highway import Highway
-from models.convlstm import ConvLSTM
 
 # ============== Encoders ===============
 class Conv1DEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, output_dim=2):
         super(Conv1DEncoder, self).__init__()
-        self.use_internal_qa_outputs = True
+        self.output_dim = output_dim
         self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_3= nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
-        self.fc = nn.Linear(256, 2)
+        self.fc = nn.Linear(256, self.output_dim)
 
     def forward(self, input):
         # permute embeddings - else the model will be destroyed
-        output = input.permute(0, 2, 1)
-        output = torch.tanh(self.conv1d_1(output))
-        output = torch.tanh(self.conv1d_2(output))
-        output = torch.tanh(self.conv1d_3(output))
+        input = input.permute(0, 2, 1)
+        input = torch.tanh(self.conv1d_1(input))
+        input = torch.tanh(self.conv1d_2(input))
+        input = torch.tanh(self.conv1d_3(input))
         # back to normal
-        output = output.permute(0, 2, 1)
-        output = self.maxpool_3(output)
-        output = self.fc(output)
+        input = input.permute(0, 2, 1)
+        # TODO: need to activate after max pool?
+        input = torch.tanh(self.maxpool_3(input))
+        input = self.fc(input)
 
-        return output
+        return input
 
 
-class BiLSTMEncoder(nn.Module):
+class BiLSTMEncoderDecoder(nn.Module):
     def __init__(self,
                  input_size,
                  hidden_size,
                  num_layers,
                  drop_prob=0.):
-        super(BiLSTMEncoder, self).__init__()
+        super(BiLSTMEncoderDecoder, self).__init__()
         self.drop_prob = drop_prob
         self.bilstm = nn.LSTM(input_size, hidden_size, num_layers,
                               batch_first=True,
                               bidirectional=True,
                               dropout=drop_prob if num_layers > 1 else 0.)
 
-    def forward(self, x):
+    def forward(self, input, hidden=None):
         # Apply RNN
-        x, _ = self.bilstm(x)  # (batch_size, seq_len, 2 * hidden_size)
+        input, hn = self.bilstm(input, hidden)  # (batch_size, seq_len, 2 * hidden_size)
         # Apply dropout (RNN applies dropout after all but the last layer)
-        x = F.dropout(x, self.drop_prob, self.training)
-        return x
+        input = F.dropout(input, self.drop_prob, self.training)
+        return input, hn
 
 class BiLSTMConvolution(nn.Module):
-    def __init__(self):
+    def __init__(self, output_dim=2, drop_prob=0.2):
         super(BiLSTMConvolution, self).__init__()
-        self.use_internal_qa_outputs = True
-        self.bilstm = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.output_dim = output_dim
+        self.drop_prob = drop_prob
+
+        self.bilstm = BiLSTMEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=self.drop_prob)
         self.conv1d_1 = nn.Conv1d(in_channels=2304, out_channels=1536, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=1536, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
-        self.fc = nn.Linear(256, 2)
+        self.fc = nn.Linear(256, self.output_dim)
 
-    def forward(self, x):
+    def forward(self, input):
         # Move embeddings through BiLSTM
-        output = self.bilstm(x)
+        output, _ = self.bilstm(input)
         # Separate the two-directions contexts
         left_cx = output[:, :, :768]
         right_cx = output[:, :, 768:]
         # Concatenate left and right contexts with the original embeddings
-        concat = torch.cat((left_cx, x, right_cx), dim=2)
+        concat = torch.cat((left_cx, input, right_cx), dim=2)
         # Convolve
         concat = concat.permute(0, 2, 1)
         concat = torch.tanh(self.conv1d_1(concat))
@@ -78,64 +80,75 @@ class BiLSTMConvolution(nn.Module):
         concat = torch.tanh(self.conv1d_3(concat))
         # back to normal
         concat = concat.permute(0, 2, 1)
-        concat = self.maxpool_3(concat)
+        concat = torch.tanh(self.maxpool_3(concat))
+        # apply dropout
+        concat = F.dropout(concat, p=self.drop_prob, training=self.training)
+        # classify
         concat = self.fc(concat)
 
         return concat
 
 
-class GRUEncoder(nn.Module):
+class GRUEncoderDecoder(nn.Module):
     def __init__(self,
                  input_size,
                  hidden_size,
                  num_layers,
                  drop_prob=0.):
-        super(GRUEncoder, self).__init__()
+        super(GRUEncoderDecoder, self).__init__()
         self.drop_prob = drop_prob
         self.gru = nn.GRU(input_size, hidden_size, num_layers,
                           batch_first=True,
                           bidirectional=False,
                           dropout=drop_prob if num_layers > 1 else 0.)
 
-    def forward(self, x):
+    def forward(self, input, hidden=None):
         # Apply RNN
-        x, _ = self.gru(x)  # (batch_size, seq_len, hidden_size)
+        input, hn = self.gru(input, hidden)  # (batch_size, seq_len, hidden_size)
         # Apply dropout (RNN applies dropout after all but the last layer)
-        x = F.dropout(x, self.drop_prob, self.training)
-        return x
+        input = F.dropout(input, self.drop_prob, self.training)
+        return input, hn
 
 # ============== Extensions ===============
 class BiLSTMHighway(nn.Module):
     def __init__(self,):
         super(BiLSTMHighway, self).__init__()
-        self.use_internal_qa_outputs = True
-        self.bilstm_encoder = BiLSTMEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.bilstm_encoder = BiLSTMEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.bilstm_decoder = BiLSTMEncoderDecoder(input_size=768 * 2, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.highway = Highway(size=768 * 2, num_layers=2, f=F.relu)
         # lower the hidden size back to 768 due to bidirectionality
-        self.linear = nn.Linear(768 * 2, 2)
+        self.fc = nn.Linear(768 * 2, 2)
 
     # input is always (batch, seq_len, hidden_size)
     # output should always be ( batch size , seq_len , hidden_size)
     def forward(self, input):
-        x = self.bilstm_encoder(input)
-        x = self.highway(x)
-        x = self.linear(x)
-        return x
+        input, hidden = self.bilstm_encoder(input)
+        input = self.highway(input)
+        input, _ = self.bilstm_decoder(input, hidden)
+        input = F.dropout(input, p=0.2, training=self.training)
+        input = self.fc(input)
+        return input
 
 class GRUHighway(nn.Module):
     def __init__(self,):
         super(GRUHighway, self).__init__()
-        self.use_internal_qa_outputs = False
-        self.gru_encoder = GRUEncoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.gru_encoder = GRUEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.gru_decoder = GRUEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.highway = Highway(size=768, num_layers=2, f=F.relu)
+        self.fc = nn.Linear(768, 2)
 
     # input is always (batch, seq_len, hidden_size)
     # output should always be ( batch size , seq_len , hidden_size)
     def forward(self, input):
-        x = self.gru_encoder(input)
-        x = self.highway(x)
-        return x
+        input, hidden = self.gru_encoder(input)
+        input = self.highway(input)
+        input, _ = self.gru_decoder(input, hidden)
+        input = F.dropout(input, p=0.2, training=self.training)
+        input = self.fc(input)
+        return input
+
 # ============== Models ===============
+
 class BertExtended(BertPreTrainedModel):
     def __init__(self, config):
         super(BertExtended, self).__init__(config)
@@ -190,15 +203,13 @@ class BertExtended(BertPreTrainedModel):
 
         sequence_hidden, sequence_pooler = outputs
 
-        # Run the extension if available
+        # Check that the extension was set
         if not self.extension:
             raise(RuntimeError("Bert extension was not set!"))
 
-        sequence_hidden = self.extension(sequence_hidden)
-        if self.extension.use_internal_qa_outputs:
-            logits = sequence_hidden
-        else:
-            logits = self.qa_outputs(sequence_hidden)
+        # The extension must return the proper size for the classification task
+        # (batch_size, hidden_features, 2)
+        logits = self.extension(sequence_hidden)
 
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
