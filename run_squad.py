@@ -426,11 +426,10 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     cache_dir = args.cache_dir if args.cache_dir else "."
     cached_features_file = os.path.join(
         cache_dir,
-        "cached_{}_{}_{}_{}".format(
+        "cached_{}_{}_{}".format(
             "dev" if evaluate else "train",
             list(filter(None, args.model_name_or_path.split("/"))).pop(),
             str(args.max_seq_length),
-            args.train_strategy,
         ),
     )
 
