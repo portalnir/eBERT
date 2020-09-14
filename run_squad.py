@@ -59,6 +59,7 @@ BERT_EXTENSIONS = {
     "conv1d": Conv1DEncoder(),
     "bilstm_conv": BiLSTMConvolution(),
 }
+TRAIN_STRATEGIES = ["long2shot", "short2long"]
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
@@ -680,7 +681,7 @@ def parse_arguments():
     )
     parser.add_argument("--server_ip", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="Can be used for distant debugging.")
-    parser.add_argument("--train_strategy", type=str, default="", help="Defines the training strategy")
+    parser.add_argument("--train_strategy", type=str.lower, default="", choices=TRAIN_STRATEGIES, help="Defines the training strategy")
     parser.add_argument("--bert_extension", type=str, default="", help="Defines the extension network on top of BERT")
     parser.add_argument("--log_file", type=str, required=True, help="Path to the log file")
 
