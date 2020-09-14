@@ -1,6 +1,6 @@
 import tqdm
 import logging
-import os
+from importlib import reload
 
 def get_logger(log_path, name='run_squad'):
     """Get a `logging.Logger` instance that prints to the console
@@ -28,6 +28,10 @@ def get_logger(log_path, name='run_squad'):
                 raise
             except:
                 self.handleError(record)
+
+    # Verify shutdown since using as module
+    logging.shutdown()
+    reload(logging)
 
     # Create logger
     logger = logging.getLogger(name)
