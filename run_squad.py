@@ -59,7 +59,7 @@ BERT_EXTENSIONS = {
     "conv1d": Conv1DEncoder(),
     "bilstm_conv": BiLSTMConvolution(),
 }
-TRAIN_STRATEGIES = ["long2shot", "short2long"]
+TRAIN_STRATEGIES = ["long2short", "short2long"]
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
