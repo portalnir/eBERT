@@ -79,7 +79,8 @@ def to_list(tensor):
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter(comment="_"+args.bert_extension)
+        base_name = f"_bert_{args.bert_extension}_{args.train_strategy}"
+        tb_writer = SummaryWriter(comment=base_name)
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     # train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
@@ -682,7 +683,7 @@ def parse_arguments():
     parser.add_argument("--server_ip", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--train_strategy", type=str.lower, default="", choices=TRAIN_STRATEGIES, help="Defines the training strategy")
-    parser.add_argument("--bert_extension", type=str, default="", help="Defines the extension network on top of BERT")
+    parser.add_argument("--bert_extension", type=str.lower, default="", help="Defines the extension network on top of BERT")
     parser.add_argument("--log_file", type=str, required=True, help="Path to the log file")
 
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
