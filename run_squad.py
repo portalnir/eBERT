@@ -706,13 +706,14 @@ def squad_main(args):
     global logger
     logger = get_logger(args.log_file)
 
-    if args.augment and not args.data_dir:
-        raise RuntimeError("data_dir parameter must be provided while using the augment parameter")
-    elif args.train_file:
-        raise RuntimeError("train_file parameter must not be provided while using the augment parameter")
-    else:
-        # set the train file to be the augmented file
-        args.train_file = AUGMENTATIONS[args.augment]
+    if args.augment:
+        if not args.data_dir:
+            raise RuntimeError("data_dir parameter must be provided while using the augment parameter")
+        elif args.train_file:
+            raise RuntimeError("train_file parameter must not be provided while using the augment parameter")
+        else:
+            # set the train file to be the augmented file
+            args.train_file = AUGMENTATIONS[args.augment]
 
     if args.doc_stride >= args.max_seq_length - args.max_query_length:
         logger.warning(
