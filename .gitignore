@@ -6,4 +6,5 @@ data/
 save/
 runs/
 cache/
+stanford/
 *.xlsx
