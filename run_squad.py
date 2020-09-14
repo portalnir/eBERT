@@ -24,10 +24,9 @@ import random
 import timeit
 
 import numpy as np
-import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
+from utils import get_logger
 
 from transformers import (
     MODEL_FOR_QUESTION_ANSWERING_MAPPING,
@@ -51,7 +50,7 @@ try:
 except ImportError:
     from tensorboardX import SummaryWriter
 
-logger = logging.getLogger(__name__)
+logger = None
 
 from models.bert import *
 
@@ -677,6 +676,7 @@ def parse_arguments():
     parser.add_argument("--server_port", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--train_strategy", type=str, default="", help="Defines the training strategy")
     parser.add_argument("--bert_extension", type=str, default="", help="Defines the extension network on top of BERT")
+    parser.add_argument("--log_file", type=str, required=True, help="Path to the log file")
 
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
     args = parser.parse_args()
@@ -684,7 +684,10 @@ def parse_arguments():
     return args
 
 
-def main_logic(args):
+def run_squad(args):
+    global logger
+    logger = get_logger(args.log_file)
+
     if args.doc_stride >= args.max_seq_length - args.max_query_length:
         logger.warning(
             "WARNING - You've set a doc stride which may be superior to the document length in some "
@@ -880,6 +883,7 @@ class SquadRunConfig(object):
                  lang_id=0,
                  learning_rate=5e-05,
                  local_rank=-1,
+                 log_file='',
                  logging_steps=500,
                  max_answer_length=30,
                  max_grad_norm=1.0,
@@ -910,13 +914,18 @@ class SquadRunConfig(object):
         for key, value in locals().items():
             setattr(self, key, value)
 
+    def __repr__(self):
+        return str(self.__dict__)
+
+    __str__ = __repr__
+
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
-        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="conv1d",
+        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="bilstm_highway",
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
                                 do_train=True, version_2_with_negative=True, do_lower_case=True,
-                                per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3)
-        main_logic(args = config)
+                                per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3, log_file='./logs/test.log')
+        run_squad(args = config)
     else:
-        main_logic(args = parse_arguments())
+        run_squad(args = parse_arguments())
 
