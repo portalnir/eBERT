@@ -2,9 +2,11 @@
 .idea/
 __pycache__
 .texpadtmp/
-data/
+data/small
 save/
 runs/
 cache/
 stanford/
 *.xlsx
+
+*.rar
