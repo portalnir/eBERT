@@ -60,6 +60,13 @@ BERT_EXTENSIONS = {
     "bilstm_conv": BiLSTMConvolution(),
 }
 TRAIN_STRATEGIES = ["long2short", "short2long"]
+AUGMENTATIONS = {
+    # 0.2 prob to synonym a word in the questions of the training set
+    "syn20" : "train-v2.0_syn20.json",
+    # 0.35 of training questions were augmented using NMT (Google Cloud Translate) 
+    # en -> de -> en and were added back to the training set (in addition of original questions)
+    "de35" : "train-v2.0_nmt_de35.json",
+}
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
@@ -683,7 +690,10 @@ def parse_arguments():
     parser.add_argument("--server_ip", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="Can be used for distant debugging.")
     parser.add_argument("--train_strategy", type=str.lower, default="", choices=TRAIN_STRATEGIES, help="Defines the training strategy")
-    parser.add_argument("--bert_extension", type=str.lower, default="", help="Defines the extension network on top of BERT")
+    parser.add_argument("--bert_extension", type=str.lower, default="", choices=list(BERT_EXTENSIONS.keys()),
+                        help="Defines the extension network on top of BERT")
+    parser.add_argument("--augment", type=str.lower, required=False, default="", choices=list(AUGMENTATIONS.keys()),
+                        help="Training data augmentation to use")
     parser.add_argument("--log_file", type=str, required=True, help="Path to the log file")
 
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
@@ -695,6 +705,14 @@ def parse_arguments():
 def squad_main(args):
     global logger
     logger = get_logger(args.log_file)
+
+    if args.augment and not args.data_dir:
+        raise RuntimeError("data_dir parameter must be provided while using the augment parameter")
+    elif args.train_file:
+        raise RuntimeError("train_file parameter must not be provided while using the augment parameter")
+    else:
+        # set the train file to be the augmented file
+        args.train_file = AUGMENTATIONS[args.augment]
 
     if args.doc_stride >= args.max_seq_length - args.max_query_length:
         logger.warning(
@@ -868,6 +886,7 @@ class SquadRunConfig(object):
                  model_type,
                  model_name_or_path,
                  output_dir,
+                 augment='',
                  adam_epsilon=1e-08,
                  bert_extension='',
                  cache_dir='',
