@@ -443,6 +443,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
             features_and_dataset["examples"],
         )
     else:
+        logger.info("Cache file does not exist at %s", cached_features_file)
         logger.info("Creating features from dataset file at %s", cache_dir)
 
         if not args.data_dir and ((evaluate and not args.predict_file) or (not evaluate and not args.train_file)):
