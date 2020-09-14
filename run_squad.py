@@ -53,6 +53,12 @@ except ImportError:
 logger = None
 
 from models.bert import *
+BERT_EXTENSIONS = {
+    "bilstm_highway": BiLSTMHighway(),
+    "gru_highway": GRUHighway(),
+    "conv1d": Conv1DEncoder(),
+    "bilstm_conv": BiLSTMConvolution(),
+}
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
@@ -775,13 +781,7 @@ def squad_main(args):
             config=config,
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
-        bert_extension = {
-            "bilstm_highway" : BiLSTMHighway(),
-            "gru_highway" : GRUHighway(),
-            "conv1d" : Conv1DEncoder(),
-            "bilstm_conv" : BiLSTMConvolution(),
-        }
-        model.set_extension(bert_extension[args.bert_extension])
+        model.set_extension(BERT_EXTENSIONS[args.bert_extension])
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
