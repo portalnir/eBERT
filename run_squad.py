@@ -684,7 +684,7 @@ def parse_arguments():
     return args
 
 
-def run_squad(args):
+def squad_main(args):
     global logger
     logger = get_logger(args.log_file)
 
@@ -925,7 +925,7 @@ if __name__ == "__main__":
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
                                 do_train=True, version_2_with_negative=True, do_lower_case=True,
                                 per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3, log_file='./logs/test.log')
-        run_squad(args = config)
+        squad_main(args = config)
     else:
-        run_squad(args = parse_arguments())
+        squad_main(args = parse_arguments())
 
