@@ -66,6 +66,8 @@ AUGMENTATIONS = {
     # 0.35 of training questions were augmented using NMT (Google Cloud Translate) 
     # en -> de -> en and were added back to the training set (in addition of original questions)
     "de35" : "train-v2.0_nmt_de35.json",
+    # 0.5 en -> fr -> en
+    "fr50" : "train-v2.0_nmt_fr50.json",
 }
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
