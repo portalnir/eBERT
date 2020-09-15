@@ -86,7 +86,7 @@ def to_list(tensor):
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
     if args.local_rank in [-1, 0]:
-        base_name = f"_bert_{args.bert_extension}_{args.train_strategy}"
+        base_name = f"_bert_{args.bert_extension}_{args.train_strategy}_{args.augment}"
         tb_writer = SummaryWriter(comment=base_name)
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
