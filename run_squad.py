@@ -285,6 +285,7 @@ def train(args, train_dataset, model, tokenizer):
     if args.local_rank in [-1, 0]:
         tb_writer.close()
 
+    logger.info(f"Training epoch finished. Total training steps: {global_step}")
     return global_step, tr_loss / global_step
 
 
