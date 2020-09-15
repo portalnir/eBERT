@@ -57,6 +57,7 @@ BERT_EXTENSIONS = {
     "bilstm_highway": BiLSTMHighway(),
     "gru_highway": GRUHighway(),
     "conv1d": Conv1DEncoder(),
+    "conv1d2": Conv1DEncoder2(),
     "bilstm_conv": BiLSTMConvolution(),
 }
 TRAIN_STRATEGIES = ["long2short", "short2long"]
@@ -946,7 +947,7 @@ class SquadRunConfig(object):
 
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
-        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="bilstm_highway",
+        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="conv1d2",
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
                                 do_train=True, version_2_with_negative=True, do_lower_case=True,
                                 per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3, log_file='./logs/test.log')

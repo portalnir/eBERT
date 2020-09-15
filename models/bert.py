@@ -13,7 +13,7 @@ class Conv1DEncoder(nn.Module):
         self.output_dim = output_dim
         self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
-        self.conv1d_3= nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
         self.fc = nn.Linear(256, self.output_dim)
 
@@ -23,6 +23,29 @@ class Conv1DEncoder(nn.Module):
         input = torch.tanh(self.conv1d_1(input))
         input = torch.tanh(self.conv1d_2(input))
         input = torch.tanh(self.conv1d_3(input))
+        # back to normal
+        input = input.permute(0, 2, 1)
+        # TODO: need to activate after max pool?
+        input = torch.tanh(self.maxpool_3(input))
+        input = self.fc(input)
+
+        return input
+
+
+class Conv1DEncoder2(nn.Module):
+    def __init__(self, output_dim=2):
+        super(Conv1DEncoder2, self).__init__()
+        self.output_dim = output_dim
+        self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=3, padding=1)
+        self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=3, padding=1)
+        self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
+        self.fc = nn.Linear(256, self.output_dim)
+
+    def forward(self, input):
+        # permute embeddings - else the model will be destroyed
+        input = input.permute(0, 2, 1)
+        input = torch.tanh(self.conv1d_1(input))
+        input = torch.tanh(self.conv1d_2(input))
         # back to normal
         input = input.permute(0, 2, 1)
         # TODO: need to activate after max pool?
