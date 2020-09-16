@@ -108,7 +108,9 @@ class Conv1DEncoder5(nn.Module):
         input = torch.tanh(self.conv1d_1(input))
         input = torch.tanh(self.conv1d_2(input))
         input = torch.tanh(self.conv1d_3(input))
+        input = input.permute(0, 2, 1)
         input = torch.tanh(self.maxpool3(input))
+        input = input.permute(0, 2, 1)
         input = torch.tanh(self.conv1d_4(input))
         input = torch.tanh(self.conv1d_5(input))
         # back to normal
@@ -138,7 +140,9 @@ class Conv1DEncoder6(nn.Module):
         input = torch.tanh(self.conv1d_1(input))
         input = torch.tanh(self.conv1d_2(input))
         input = torch.tanh(self.conv1d_3(input))
+        input = input.permute(0, 2, 1)
         input = torch.tanh(self.maxpool3(input))
+        input = input.permute(0, 2, 1)
         input = torch.tanh(self.conv1d_4(input))
         input = torch.tanh(self.conv1d_5(input))
         # back to normal
