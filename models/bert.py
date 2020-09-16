@@ -32,9 +32,9 @@ class Conv1DEncoder(nn.Module):
         return input
 
 
-class Conv1DEncoder2(nn.Module):
+class Conv1DEncoder3(nn.Module):
     def __init__(self, output_dim=2):
-        super(Conv1DEncoder2, self).__init__()
+        super(Conv1DEncoder3, self).__init__()
         self.output_dim = output_dim
         self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=512, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=512, out_channels=384, kernel_size=5, padding=2)
