@@ -58,6 +58,8 @@ BERT_EXTENSIONS = {
     "gru_highway": GRUHighway(),
     "conv1d": Conv1DEncoder(),
     "conv1d3": Conv1DEncoder3(),
+    "conv1d4": Conv1DEncoder4(),
+    "conv1d5": Conv1DEncoder5(),
     "bilstm_conv": BiLSTMConvolution(),
     "conv_bilstm" : Conv1DBiLSTM(),
 }
