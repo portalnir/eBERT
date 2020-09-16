@@ -60,6 +60,7 @@ BERT_EXTENSIONS = {
     "conv1d3": Conv1DEncoder3(),
     "conv1d4": Conv1DEncoder4(),
     "conv1d5": Conv1DEncoder5(),
+    "conv1d6": Conv1DEncoder6(),
     "bilstm_conv": BiLSTMConvolution(),
     "conv_bilstm" : Conv1DBiLSTM(),
 }

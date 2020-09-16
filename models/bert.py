@@ -119,6 +119,36 @@ class Conv1DEncoder5(nn.Module):
 
         return input
 
+class Conv1DEncoder6(nn.Module):
+    def __init__(self, output_dim=2):
+        super(Conv1DEncoder6, self).__init__()
+        self.output_dim = output_dim
+        self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=384, kernel_size=5, padding=2)
+        self.conv1d_2 = nn.Conv1d(in_channels=384, out_channels=384, kernel_size=5, padding=2)
+        self.conv1d_3 = nn.Conv1d(in_channels=384, out_channels=768, kernel_size=5, padding=2)
+        self.conv1d_4 = nn.Conv1d(in_channels=256, out_channels=512, kernel_size=5, padding=2)
+        self.conv1d_5 = nn.Conv1d(in_channels=512, out_channels=768, kernel_size=5, padding=2)
+        self.maxpool3 = nn.MaxPool1d(kernel_size=3)
+        self.highway = Highway(size=256, num_layers=3, f=torch.relu)
+        self.fc = nn.Linear(256, self.output_dim)
+
+    def forward(self, input):
+        # permute embeddings - else the model will be destroyed
+        input = input.permute(0, 2, 1)
+        input = torch.tanh(self.conv1d_1(input))
+        input = torch.tanh(self.conv1d_2(input))
+        input = torch.tanh(self.conv1d_3(input))
+        input = torch.tanh(self.maxpool3(input))
+        input = torch.tanh(self.conv1d_4(input))
+        input = torch.tanh(self.conv1d_5(input))
+        # back to normal
+        input = input.permute(0, 2, 1)
+        input = torch.tanh(self.maxpool3(input))
+        input = torch.highway(input)
+        input = self.fc(input)
+
+        return input
+
 
 class BiLSTMEncoderDecoder(nn.Module):
     def __init__(self,
