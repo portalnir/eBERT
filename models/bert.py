@@ -97,13 +97,13 @@ class Conv1DBiLSTM(nn.Module):
     def forward(self, input):
         # Move embeddings through Conv1D
         input = input.permute(0, 2, 1)
-        input = torch.relu(self.conv1d_1(input))
-        input = torch.relu(self.conv1d_2(input))
-        input = torch.relu(self.conv1d_3(input))
+        input = torch.tanh(self.conv1d_1(input))
+        input = torch.tanh(self.conv1d_2(input))
+        input = torch.tanh(self.conv1d_3(input))
         # back to normal
         input = input.permute(0, 2, 1)
         # Pool
-        input = torch.relu(self.maxpool_3(input))
+        input = torch.tanh(self.maxpool_3(input))
         # bilstm
         input, _ = self.bilstm(input)
         # classify
