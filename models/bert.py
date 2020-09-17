@@ -154,17 +154,18 @@ class Conv1DEncoder6(nn.Module):
         return input
 
 
-class BiLSTMEncoderDecoder(nn.Module):
+class LSTMEncoderDecoder(nn.Module):
     def __init__(self,
                  input_size,
                  hidden_size,
                  num_layers,
+                 bidirectional=False,
                  drop_prob=0.):
-        super(BiLSTMEncoderDecoder, self).__init__()
+        super(LSTMEncoderDecoder, self).__init__()
         self.drop_prob = drop_prob
         self.bilstm = nn.LSTM(input_size, hidden_size, num_layers,
                               batch_first=True,
-                              bidirectional=True,
+                              bidirectional=bidirectional,
                               dropout=drop_prob if num_layers > 1 else 0.)
 
     def forward(self, input, hidden=None):
@@ -180,7 +181,7 @@ class Conv1DBiLSTM(nn.Module):
         self.output_dim = output_dim
         self.drop_prob = drop_prob
 
-        self.bilstm = BiLSTMEncoderDecoder(input_size=256, hidden_size=768, num_layers=2, drop_prob=self.drop_prob)
+        self.bilstm = LSTMEncoderDecoder(input_size=256, hidden_size=768, num_layers=2, drop_prob=self.drop_prob)
         self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
@@ -210,7 +211,7 @@ class BiLSTMConvolution(nn.Module):
         self.output_dim = output_dim
         self.drop_prob = drop_prob
 
-        self.bilstm = BiLSTMEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=self.drop_prob)
+        self.bilstm = LSTMEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, bidirectional=True, drop_prob=self.drop_prob)
         self.conv1d_1 = nn.Conv1d(in_channels=2304, out_channels=1536, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=1536, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
@@ -240,6 +241,37 @@ class BiLSTMConvolution(nn.Module):
 
         return concat
 
+class LSTMConvolution(nn.Module):
+    def __init__(self, output_dim=2, drop_prob=0.2):
+        super(LSTMConvolution, self).__init__()
+        self.output_dim = output_dim
+        self.drop_prob = drop_prob
+
+        self.bilstm = LSTMEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, bidirectional=False, drop_prob=self.drop_prob)
+        self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
+        self.maxpool_3 = nn.MaxPool1d(kernel_size=3)
+        self.fc = nn.Linear(256, self.output_dim)
+
+    def forward(self, input):
+        # Move embeddings through BiLSTM
+        output, _ = self.bilstm(input)
+
+        # Convolve
+        output = output.permute(0, 2, 1)
+        output = torch.tanh(self.conv1d_1(output))
+        output = torch.tanh(self.conv1d_2(output))
+        output = torch.tanh(self.conv1d_3(output))
+        # back to normal
+        output = output.permute(0, 2, 1)
+        output = torch.tanh(self.maxpool_3(output))
+        # apply dropout
+        output = F.dropout(output, p=self.drop_prob, training=self.training)
+        # classify
+        output = self.fc(output)
+
+        return output
 
 class GRUEncoderDecoder(nn.Module):
     def __init__(self,
@@ -265,8 +297,8 @@ class GRUEncoderDecoder(nn.Module):
 class BiLSTMHighway(nn.Module):
     def __init__(self,):
         super(BiLSTMHighway, self).__init__()
-        self.bilstm_encoder = BiLSTMEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
-        self.bilstm_decoder = BiLSTMEncoderDecoder(input_size=768 * 2, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.bilstm_encoder = LSTMEncoderDecoder(input_size=768, hidden_size=768, num_layers=2, drop_prob=0.2)
+        self.bilstm_decoder = LSTMEncoderDecoder(input_size=768 * 2, hidden_size=768, num_layers=2, drop_prob=0.2)
         self.highway = Highway(size=768 * 2, num_layers=2, f=F.relu)
         # lower the hidden size back to 768 due to bidirectionality
         self.fc = nn.Linear(768 * 2, 2)

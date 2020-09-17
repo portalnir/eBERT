@@ -62,6 +62,7 @@ BERT_EXTENSIONS = {
     "conv1d5": Conv1DEncoder5(),
     "conv1d6": Conv1DEncoder6(),
     "bilstm_conv": BiLSTMConvolution(),
+    "lstm_conv" : LSTMConvolution(),
     "conv_bilstm" : Conv1DBiLSTM(),
 }
 TRAIN_STRATEGIES = ["long2short", "short2long"]
@@ -951,7 +952,7 @@ class SquadRunConfig(object):
 
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
-        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="conv_bilstm",
+        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="lstm_conv",
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
                                 do_train=True, version_2_with_negative=True, do_lower_case=True,
                                 per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3, log_file='./logs/test.log')
