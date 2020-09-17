@@ -148,7 +148,7 @@ class Conv1DEncoder6(nn.Module):
         # back to normal
         input = input.permute(0, 2, 1)
         input = torch.tanh(self.maxpool3(input))
-        input = torch.highway(input)
+        input = self.highway(input)
         input = self.fc(input)
 
         return input
