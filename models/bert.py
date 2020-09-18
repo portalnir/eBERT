@@ -486,7 +486,7 @@ class BertExtended(BertPreTrainedModel):
             total_loss = (start_loss + end_loss) / 2
 
             if self.impossible_classifier:
-                total_loss += 1.5 * impossible_loss
+                total_loss += 0.5 * impossible_loss
 
         if not return_dict:
             output = (start_logits, end_logits) + outputs[2:]
