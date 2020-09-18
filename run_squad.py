@@ -210,6 +210,7 @@ def train(args, train_dataset, model, tokenizer):
                 "token_type_ids": batch[2],
                 "start_positions": batch[3],
                 "end_positions": batch[4],
+                "is_impossible" : batch[7],
             }
 
             if args.model_type in ["xlm", "roberta", "distilbert", "camembert", "bart"]:
@@ -704,6 +705,8 @@ def parse_arguments():
     parser.add_argument("--augment", type=str.lower, required=False, default="", choices=list(AUGMENTATIONS.keys()),
                         help="Training data augmentation to use")
     parser.add_argument("--log_file", type=str, required=True, help="Path to the log file")
+    parser.add_argument("--impossible_classifier", type=bool, action="store_true", default=False, help="Use impossible classifier")
+    parser.add_argument("--impossible_threshold", type=int, default=0.65, help="Impossible classifier threshold")
 
     parser.add_argument("--threads", type=int, default=1, help="multiple threads for converting example to features")
     args = parser.parse_args()
@@ -812,6 +815,16 @@ def squad_main(args):
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
         model.set_extension(BERT_EXTENSIONS[args.bert_extension])
+        if args.impossible_classifier:
+            model.set_impossible_classifier(
+                model=BertForSequenceClassification.from_pretrained(
+                    args.model_name_or_path,
+                    from_tf=bool(".ckpt" in args.model_name_or_path),
+                    config=config,
+                    cache_dir=args.cache_dir if args.cache_dir else None,
+                ),
+                threshold=args.impossible_threshold
+            )
 
     if args.local_rank == 0:
         # Make sure only the first process in distributed training will download model & vocab
@@ -938,6 +951,8 @@ class SquadRunConfig(object):
                  tokenizer_name='',
                  train_file=None,
                  train_strategy='',
+                 impossible_classifier=False,
+                 impossible_threshold=0.65,
                  verbose_logging=False,
                  version_2_with_negative=False,
                  warmup_steps=0,
@@ -954,7 +969,7 @@ if __name__ == "__main__":
     if sys.argv[1] == "debug":
         config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="lstm_conv",
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
-                                do_train=True, version_2_with_negative=True, do_lower_case=True,
+                                do_train=True, version_2_with_negative=True, do_lower_case=True, impossible_classifier=True,
                                 per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3, log_file='./logs/test.log')
         squad_main(args = config)
     else:

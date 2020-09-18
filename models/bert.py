@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
-from transformers import BertPreTrainedModel, BertModel
+from transformers import BertPreTrainedModel, BertModel, BertForSequenceClassification
 from transformers.modeling_outputs import QuestionAnsweringModelOutput
 from models.highway import Highway
 
@@ -337,6 +337,8 @@ class BertExtended(BertPreTrainedModel):
     def __init__(self, config):
         super(BertExtended, self).__init__(config)
         self.bert = BertModel(config)
+        # define bert classifier
+        self.impossible_classifier = None
         # set extension to be None in the default case
         self.extension = None
         # two labels for each token - the probability to be the start and end indices of the answer
@@ -344,8 +346,43 @@ class BertExtended(BertPreTrainedModel):
 
         self.init_weights()
 
+    def set_impossible_classifier(self, model, threshold):
+        self.impossible_classifier = model
+        self.impossible_threshold = threshold
+        # in case no bert
+        if hasattr(model, "num_labels"):
+            model.num_labels = 2
+
     def set_extension(self, extension):
         self.extension = extension
+
+    def forward_classifier(self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        # forward for question answering
+        outputs_classifier = self.impossible_classifier(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            labels=labels,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=True,
+        )
+        probes=torch.softmax(outputs_classifier['logits'], dim=1)
+        return probes, outputs_classifier['loss']
 
     def forward(
         self,
@@ -360,6 +397,7 @@ class BertExtended(BertPreTrainedModel):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
+        is_impossible=None,
     ):
         r"""
         start_positions (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`, defaults to :obj:`None`):
@@ -373,6 +411,7 @@ class BertExtended(BertPreTrainedModel):
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        # forward for answer indices
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -384,6 +423,21 @@ class BertExtended(BertPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
+
+        if self.impossible_classifier:
+            labels = is_impossible.unsqueeze_(1).type(torch.LongTensor)
+            impossible_probes, impossible_loss = self.forward_classifier(
+                input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+                labels=labels,
+            )
 
         sequence_hidden, sequence_pooler = outputs
 
@@ -411,10 +465,21 @@ class BertExtended(BertPreTrainedModel):
             start_positions.clamp_(0, ignored_index)
             end_positions.clamp_(0, ignored_index)
 
+            if self.impossible_classifier:
+                # 0 - Has Answer, 1 - No Answer
+                # Extract the impossible answers using threshold
+                impossible_indexs = (impossible_probes[:,1] > self.impossible_threshold).nonzero().squeeze(-1)
+                if impossible_indexs.nelement() > 0:
+                    start_positions.index_fill_(dim=0, index=impossible_indexs, value=0)
+                    end_positions.index_fill_(dim=0, index=impossible_indexs, value=0)
+
             loss_fct = CrossEntropyLoss(ignore_index=ignored_index)
             start_loss = loss_fct(start_logits, start_positions)
             end_loss = loss_fct(end_logits, end_positions)
             total_loss = (start_loss + end_loss) / 2
+
+            if self.impossible_classifier:
+                total_loss += 1.5 * impossible_loss
 
         if not return_dict:
             output = (start_logits, end_logits) + outputs[2:]
