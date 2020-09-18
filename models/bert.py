@@ -382,7 +382,10 @@ class BertExtended(BertPreTrainedModel):
             return_dict=True,
         )
         probes=torch.softmax(outputs_classifier['logits'], dim=1)
-        return probes, outputs_classifier['loss']
+        if labels != None:
+            return probes, outputs_classifier['loss']
+        else:
+            return probes, None
 
     def forward(
         self,
