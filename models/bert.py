@@ -425,7 +425,8 @@ class BertExtended(BertPreTrainedModel):
         )
 
         if self.impossible_classifier:
-            labels = is_impossible.unsqueeze_(1).type(torch.LongTensor)
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            labels = is_impossible.unsqueeze_(1).type(torch.LongTensor).to(device)
             impossible_probes, impossible_loss = self.forward_classifier(
                 input_ids,
                 attention_mask=attention_mask,
