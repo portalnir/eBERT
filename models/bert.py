@@ -181,7 +181,7 @@ class Conv1DBiLSTM(nn.Module):
         self.output_dim = output_dim
         self.drop_prob = drop_prob
 
-        self.bilstm = LSTMEncoderDecoder(input_size=256, hidden_size=768, num_layers=2, drop_prob=self.drop_prob)
+        self.bilstm = LSTMEncoderDecoder(input_size=256, hidden_size=768, num_layers=2, drop_prob=self.drop_prob, bidirectional=True)
         self.conv1d_1 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_2 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
         self.conv1d_3 = nn.Conv1d(in_channels=768, out_channels=768, kernel_size=5, padding=2)
