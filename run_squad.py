@@ -789,6 +789,7 @@ def squad_main(args):
         torch.distributed.barrier()
 
     args.model_type = args.model_type.lower()
+
     config = AutoConfig.from_pretrained(
         args.config_name if args.config_name else args.model_name_or_path,
         cache_dir=args.cache_dir if args.cache_dir else None,
@@ -798,14 +799,14 @@ def squad_main(args):
         do_lower_case=args.do_lower_case,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
-    model = AutoModelForQuestionAnswering.from_pretrained(
-        args.model_name_or_path,
-        from_tf=bool(".ckpt" in args.model_name_or_path),
-        config=config,
-        cache_dir=args.cache_dir if args.cache_dir else None,
-    )
-
-    if args.bert_extension:
+    if not args.bert_extension:
+        model = AutoModelForQuestionAnswering.from_pretrained(
+            args.model_name_or_path,
+            from_tf=bool(".ckpt" in args.model_name_or_path),
+            config=config,
+            cache_dir=args.cache_dir if args.cache_dir else None,
+        )
+    else:
         args.bert_extension = args.bert_extension.lower()
         model = BertExtended.from_pretrained(
             args.model_name_or_path,
@@ -966,9 +967,10 @@ class SquadRunConfig(object):
 
 if __name__ == "__main__":
     if sys.argv[1] == "debug":
-        config = SquadRunConfig(model_type="bert", model_name_or_path="bert-base-uncased", bert_extension="lstm_conv",
+        config = SquadRunConfig(model_type="bert", model_name_or_path="./bins/MODEL1", bert_extension="conv_bilstm",
+                                config_name="bert-base-uncased",
                                 output_dir="output/bert_base_uncased", data_dir="./data/small", cache_dir="./cache/small",
-                                do_train=True, version_2_with_negative=True, do_lower_case=True, impossible_classifier=True,
+                                do_train=False, do_eval=True, version_2_with_negative=True, do_lower_case=True, impossible_classifier=False,
                                 per_gpu_eval_batch_size=3, per_gpu_train_batch_size=3, log_file='./logs/test.log')
         squad_main(args = config)
     else:
