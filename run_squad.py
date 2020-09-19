@@ -818,9 +818,9 @@ def squad_main(args):
         if args.impossible_classifier:
             model.set_impossible_classifier(
                 model=BertForSequenceClassification.from_pretrained(
-                    args.model_name_or_path,
-                    from_tf=bool(".ckpt" in args.model_name_or_path),
-                    config=config,
+                    "bert-base-uncased",
+                    from_tf=False,
+                    config=AutoConfig.from_pretrained('bert-base-uncased', cache_dir=args.cache_dir if args.cache_dir else None,),
                     cache_dir=args.cache_dir if args.cache_dir else None,
                 ),
                 threshold=args.impossible_threshold
