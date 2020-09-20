@@ -810,7 +810,7 @@ def squad_main(args):
         args.bert_extension = args.bert_extension.lower()
         model = BertExtended(config)
         model.set_extension(BERT_EXTENSIONS[args.bert_extension])
-        model = BertExtended.from_pretrained(
+        model.from_pretrained(
             args.model_name_or_path,
             from_tf=bool(".ckpt" in args.model_name_or_path),
             config=config,
