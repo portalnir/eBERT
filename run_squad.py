@@ -808,13 +808,15 @@ def squad_main(args):
         )
     else:
         args.bert_extension = args.bert_extension.lower()
+        model = BertExtended(config)
+        model.set_extension(BERT_EXTENSIONS[args.bert_extension])
         model = BertExtended.from_pretrained(
             args.model_name_or_path,
             from_tf=bool(".ckpt" in args.model_name_or_path),
             config=config,
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
-        model.set_extension(BERT_EXTENSIONS[args.bert_extension])
+
         if args.impossible_classifier:
             model.set_impossible_classifier(
                 model=BertForSequenceClassification.from_pretrained(
